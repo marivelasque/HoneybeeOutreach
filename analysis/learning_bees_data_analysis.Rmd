@@ -1,0 +1,96 @@
+---
+title: "Ryukyu girls"
+author: "Mariana Velasque"
+date: "22/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(ggpubr)
+library(nlme)
+library(multcomp)
+library(tibble)
+
+setwd("~/Dropbox/Pesquisa/Post-doc/OIST_luscombeu/insect_outreach/")
+```
+
+```{r}
+
+learning_bees_results <- read_csv("learning_bees_results.csv")
+## Convert to long format
+
+learning_bees_long <- gather(learning_bees_results, Treatment, Number_condit, Dopamine:Caffeine, factor_key=TRUE)%>%
+   drop_na()
+
+ average_learning_bees<- learning_bees_long %>%
+   group_by(Treatment,Sample) %>%
+   summarise(average_cond = mean(Number_condit, na.rm = TRUE)) 
+
+
+average_learning_bees<- average_learning_bees %>%
+   arrange(average_cond)
+
+colour_palette <- data.frame("Treatment" = levels(average_learning_bees$Treatment),
+                             "palette" = c("#f8b195", "#f67280",
+                                           "#c06c84"))
+#f8b195, #f67280, #c06c84, #6c5b7b, #355c7d
+
+
+
+lme_learning = lme(log10(Number_condit +1) ~ Treatment, data=learning_bees_long, random = ~1|Sample)
+anova(lme_learning)
+
+learning_post_t <- summary(glht(lme_learning, 
+                             linfct=mcp(Treatment = "Tukey")), 
+                           test = adjusted(type = "bonferroni"))
+
+
+learning_post_t<- data.frame(Estimate = learning_post_t$test$coefficients, 
+                                 p.val = learning_post_t$test$pvalues) %>%
+   rownames_to_column(var= "comparison" )  %>%
+   separate(comparison, c("group1", "group2"), " - ") %>%
+   as_tibble() 
+
+
+learning_max_value <- average_learning_bees %>%
+   dplyr::select(Treatment, average_cond) %>%
+   group_by(Treatment) %>%
+   dplyr::filter(average_cond == max(average_cond)) %>%
+   distinct(Treatment, .keep_all = T) %>%
+   add_column(Turket_test = c("b", "a,b", "a"))
+
+learning_max_value$average_cond = learning_max_value$average_cond +0.2
+
+learning_post_tuk<-learning_post_t %>%
+   add_column(.before = "group1", 'term' = c("average_cond")) %>% 
+   mutate(across(is.numeric, ~ round(., 3)))
+
+plot1 <- average_learning_bees %>%
+   ggplot(aes(y=average_cond, x =Treatment)) + 
+   geom_point(size = 1.8, stroke = 1,  shape=21, colour="black", aes(color=Treatment)) +
+   geom_point( size = 1.8, aes(color=Treatment)) +
+   scale_color_manual(values=c(colour_palette$palette),
+                      name = "Treatment",
+                      labels = colour_palette$Treatment) +
+   labs(x= "\nTreatment group", y = "\n\nNumber of trials until conditioned") +
+   theme_classic() +
+   theme(legend.position = "none",
+         text = element_text(size=12))
+plot1 + 
+   geom_boxplot(aes(fill = Treatment), alpha = 0.6) +
+   scale_fill_manual(values=c(colour_palette$palette)) +
+   stat_pvalue_manual(learning_post_tuk, label = "p = {p.val}", y.position = (learning_max_value$average_cond+2)) +
+   geom_text(data = learning_max_value,
+             label = c(learning_max_value$Turket_test), size =6, 
+             position = position_dodge(0.9),vjust = 0)
+
+
+```
