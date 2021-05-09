@@ -45,7 +45,7 @@ colour_palette <- data.frame("Treatment" = levels(average_learning_bees$Treatmen
 
 
 
-lme_learning = lme(log10(Number_condit +1) ~ Treatment, data=learning_bees_long, random = ~1|Sample)
+lme_learning = lme(Number_condit ~ Treatment, data=learning_bees_long, random = ~1|Sample)
 anova(lme_learning)
 
 learning_post_t <- summary(glht(lme_learning, 
