@@ -24,11 +24,13 @@ setwd("~/Dropbox/Pesquisa/Post-doc/OIST_luscombeu/insect_outreach/")
 
 ```{r}
 
-learning_bees_results <- read_csv("learning_bees_results.csv")
+learning_bees_results <- read_csv("learning_bees_results.csv") 
+
+write_csv(learning_bees_results, "learning_bees_results_average.csv", na = "NA",  quote_escape = "double",)
 ## Convert to long format
 
 learning_bees_long <- gather(learning_bees_results, Treatment, Number_condit, Dopamine:Caffeine, factor_key=TRUE)%>%
-   drop_na()
+   drop_na() 
 
  average_learning_bees<- learning_bees_long %>%
    group_by(Treatment,Sample) %>%
@@ -39,13 +41,13 @@ average_learning_bees<- average_learning_bees %>%
    arrange(average_cond)
 
 colour_palette <- data.frame("Treatment" = levels(average_learning_bees$Treatment),
-                             "palette" = c("#f8b195", "#f67280",
-                                           "#c06c84"))
+                             "palette" = c("orange", "#7d8185", 
+                                           "steelblue3"))
 #f8b195, #f67280, #c06c84, #6c5b7b, #355c7d
 
 
 
-lme_learning = lme(Number_condit ~ Treatment, data=learning_bees_long, random = ~1|Sample)
+lme_learning = lme(log10(Number_condit +1) ~ Treatment, data=learning_bees_long, random = ~1|Sample)
 anova(lme_learning)
 
 learning_post_t <- summary(glht(lme_learning, 
@@ -75,22 +77,25 @@ learning_post_tuk<-learning_post_t %>%
 
 plot1 <- average_learning_bees %>%
    ggplot(aes(y=average_cond, x =Treatment)) + 
-   geom_point(size = 1.8, stroke = 1,  shape=21, colour="black", aes(color=Treatment)) +
-   geom_point( size = 1.8, aes(color=Treatment)) +
-   scale_color_manual(values=c(colour_palette$palette),
-                      name = "Treatment",
-                      labels = colour_palette$Treatment) +
-   labs(x= "\nTreatment group", y = "\n\nNumber of trials until conditioned") +
-   theme_classic() +
-   theme(legend.position = "none",
-         text = element_text(size=12))
-plot1 + 
-   geom_boxplot(aes(fill = Treatment), alpha = 0.6) +
+     geom_boxplot(aes(fill = Treatment), alpha = 0.65) +
    scale_fill_manual(values=c(colour_palette$palette)) +
    stat_pvalue_manual(learning_post_tuk, label = "p = {p.val}", y.position = (learning_max_value$average_cond+2)) +
+     theme_classic(base_size = 12)+
    geom_text(data = learning_max_value,
              label = c(learning_max_value$Turket_test), size =6, 
              position = position_dodge(0.9),vjust = 0)
 
+   
+plot1 + 
+   #geom_jitter(size = 1.8, stroke = 1,  shape=21, colour="black", aes(color=Treatment)) +
+   geom_jitter( size = 1.8, aes(color=Treatment)) +
+   scale_color_manual(values=c("#ff8c00", "#33373b", "#2457bd"),
+                      name = "Treatment",
+                      labels = colour_palette$Treatment) +
+   labs(x= "", y = "\n\nNumber of trials until conditioned") +   theme(legend.position = "none", 
+axis.text = element_text(size=12),
+         text = element_text(size=12))
+
+ggsave("plot2.png", units="in", width=5, height= 5, dpi=600)
 
 ```
